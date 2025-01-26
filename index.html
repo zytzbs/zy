@@ -57,8 +57,61 @@ h1 {
             padding: 10px;
             margin-top: 20px;
             border-radius: 4px;
+            /* white-space: pre-wrap; 表示保留文本中的空白符（包括换行符和空格），
+               但会根据容器宽度自动换行，同时保留原有的换行符 */
             white-space: pre-wrap;
         }
+        .resultwxxk {
+            background: #e9ecef;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+            
+        }
+    
+
+        .warning {
+            color: red;
+            font-weight: bold;
+            position: relative; /* 相对定位 */
+            display: inline-block; /* 确保箭头定位准确 */
+        }
+
+
+        .conflict {
+            color: red;
+            position: relative;
+            display: inline-block;
+        }
+
+        .conflict::after {
+            content: '⬇';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: red;
+            font-size: 14px;
+        }
+
+        .conflictd {
+            color: red;
+            position: relative;
+            display: inline-block;
+        }
+
+        .conflictd::after {
+            content: '⬇⬇';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: red;
+            font-size: 14px;
+        }
+
+
+
         @media (max-width: 400px) {
             .container {
                 width: 100%;
@@ -68,7 +121,6 @@ h1 {
     </style>
 </head>
 <body>
-    
 	    <div class="container">
         <h1>中医五行年份和月份信息</h1>
         <form id="tcmInfoForm">
@@ -76,12 +128,15 @@ h1 {
             <input type="number" id="yearInput" min="0" placeholder="请输入年份">
             <label for="monthInput">月份：</label>
             <input type="number" id="monthInput" min="1" max="12" placeholder="请输入月份">
+            <label for="monthInput">日期：</label>
+            <input type="number" id="dayInput" min="1" max="12" placeholder="请输入日期">
             <label for="monthInput">年龄：</label>
 			<input type="number" id="ageInput"  placeholder="请输入年龄">
             <button type="button" onclick="displayTcmInfo()">查询</button>
         </form>
         <div class="result" id="result"></div>
 		<div class="result" id="monthlyYunInfo"></div>
+        <div class="resultwxxk" id="wxxkInfo"></div>
     </div>
 
 
@@ -302,6 +357,223 @@ const fangJi = {
         }
     }
 	
+// 地支与数字的映射关系
+const earthlyBranches = {
+            "子": 1,
+            "丑": 2,
+            "寅": 3,
+            "卯": 4,
+            "辰": 5,
+            "巳": 6,
+            "午": 7,
+            "未": 8,
+            "申": 9,
+            "酉": 10,
+            "戌": 11,
+            "亥": 12
+        };
+
+        // 地支顺序
+        const earthlyBranchOrder = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+        // 根据数字转换为五行
+        function getElement(number) {
+            if ([4, 5].includes(number)) return "木";
+            if ([6, 7].includes(number)) return "火";
+            if ([3, 8, 9].includes(number)) return "土";
+            if ([10, 11].includes(number)) return "金";
+            if ([12, 1, 2].includes(number)) return "水";
+            return null;
+        }
+
+        // 判断五行是否相克
+        function isConflict(element1, element2) {
+            const conflictPairs = {
+                "水": "火",
+                "火": "金",
+                "金": "木",
+                "木": "土",
+                "土": "水"
+            };
+            return conflictPairs[element1] === element2;
+        }
+
+ // 检查相克关系并标注箭头
+ function checkConflicts(sequence) {
+    const elements = sequence.split(' - '); // 将序列拆分为数组
+            const conflictCounts = new Array(elements.length).fill(0); // 记录每个元素被克的次数
+
+            // 从左到右检查
+            for (let i = 0; i < elements.length - 1; i++) {
+                const current = elements[i].split('(')[1].replace(')', ''); // 提取五行元素
+                const next = elements[i + 1].split('(')[1].replace(')', ''); // 提取下一个五行元素
+                if (isConflict(current, next)) {
+                    conflictCounts[i + 1]++; // 被克的元素计数加1
+                }
+            }
+
+            // 从右到左检查
+            for (let i = elements.length - 1; i > 0; i--) {
+                const current = elements[i].split('(')[1].replace(')', ''); // 提取五行元素
+                const prev = elements[i - 1].split('(')[1].replace(')', ''); // 提取上一个五行元素
+                if (isConflict(current, prev)) {
+                    conflictCounts[i - 1]++; // 被克的元素计数加1
+                }
+            }
+
+            // 标注箭头和颜色
+            const result = elements.map((item, index) => {
+                const count = conflictCounts[index];
+                if (count === 1) {
+                    return `<span class="conflict">${item}</span>`;
+                } else if (count === 2) {
+                    return `<span class="conflictd">${item}</span>`;
+                }
+                return item;
+            }).join(' - ');
+
+            return result;
+        }
+
+
+        // 高亮显示文本
+        function highlight(text) {
+            return `<span class="warning">${text.toUpperCase()}</span>`;
+        }
+
+        // 将年份转换为地支数字
+        function convertYearToEarthlyBranchNumber(year) {
+            const branchIndex = (year - 4) % 12;
+            const branchName = earthlyBranchOrder[branchIndex];
+            return earthlyBranches[branchName];
+        }
+
+        // 将日期拆分为数字
+        function splitDayIntoDigits(day) {
+            const digits = [];
+            if (day >= 10) {
+                digits.push(Math.floor(day / 10));
+                digits.push(10);
+                digits.push(day % 10);
+            } else {
+                digits.push(day);
+            }
+            return digits;
+        }
+
+        // 调整数字范围（1-12）
+        function adjustNumber(number) {
+            if (number < 1) return number + 12;
+            if (number > 12) return number - 12;
+            return number;
+        }
+
+        // 检查特殊模式
+        function checkSpecialPatterns(firstRow, secondRow) {
+            const tumorPattern = [
+                [9, 4], [1, 6], [2, 6], [12, 7], [3, 5],
+                [1, 9], [1, 8], [11, 7], [3, 6], [4, 10]
+            ];
+            const accidentPattern = [
+                [1, 7], [7, 1], [8, 2], [2, 8], [3, 9],
+                [9, 3], [10, 4], [4, 10], [11, 5], [5, 11],
+                [12, 6], [6, 12]
+            ];
+
+            if (tumorPattern.every(pair => firstRow.includes(pair[0]) && secondRow.includes(pair[1]))) {
+                return "警告：可能有肿瘤的风险。";
+            }
+
+            if (accidentPattern.every(pair => firstRow.includes(pair[0]) && secondRow.includes(pair[1]))) {
+                return "警告：可能有交通意外的风险。";
+            }
+
+            return null;
+        }
+
+        // 检查双重冲突
+        function checkDoubleConflict(firstRowElements, secondRowElements) {
+            const doubleConflicts = [];
+            for (let i = 0; i < firstRowElements.length - 1; i++) {
+                if (firstRowElements[i] === firstRowElements[i + 1] && isConflict(secondRowElements[i + 1], secondRowElements[i])) {
+                    doubleConflicts.push(`${highlight(firstRowElements[i])} 克 ${secondRowElements[i]}`);
+                }
+            }
+            return doubleConflicts;
+        }
+
+        // 分析健康
+        function analyzeHealth(year, month, day) {
+            const yearNum = convertYearToEarthlyBranchNumber(year);
+            const dayDigits = splitDayIntoDigits(day);
+
+            const yearElement = getElement(yearNum);
+            const monthElement = getElement(month);
+            const dayElements = dayDigits.map(d => getElement(d));
+
+            const adjustedYear = adjustNumber(yearNum + 6);
+            const adjustedMonth = adjustNumber(month + 6);
+            const adjustedDayDigits = dayDigits.map(d => adjustNumber(d + 6));
+
+            const adjustedYearElement = getElement(adjustedYear);
+            const adjustedMonthElement = getElement(adjustedMonth);
+            const adjustedDayElements = adjustedDayDigits.map(d => getElement(d));
+
+            const firstRowText = `${yearNum}(${yearElement}) - ${month}(${monthElement}) - ${dayDigits.map((d, i) => `${d}(${dayElements[i]})`).join(' - ')}`;
+            const secondRowText = `${adjustedYear}(${adjustedYearElement}) - ${adjustedMonth}(${adjustedMonthElement}) - ${adjustedDayDigits.map((d, i) => `${d}(${adjustedDayElements[i]})`).join(' - ')}`;
+
+            const healthIssues = [];
+
+            const firstRow = [yearNum, month, ...dayDigits];
+            const secondRow = [adjustedYear, adjustedMonth, ...adjustedDayDigits];
+
+            const specialPatternWarning = checkSpecialPatterns(firstRow, secondRow);
+            if (specialPatternWarning) {
+                healthIssues.push(specialPatternWarning);
+            }
+
+            const firstRowElements = [yearElement, monthElement, ...dayElements];
+            const secondRowElements = [adjustedYearElement, adjustedMonthElement, ...adjustedDayElements];
+
+            const doubleConflictWarnings = checkDoubleConflict(firstRowElements, secondRowElements);
+            if (doubleConflictWarnings.length > 0) {
+                healthIssues.push(...doubleConflictWarnings);
+            }
+
+            const parts = ["头颈", "胸部", "腰腹", "腿脚"];
+
+            for (let i = 0; i < firstRowElements.length - 1; i++) {
+                if (isConflict(firstRowElements[i + 1], firstRowElements[i])) {
+                    healthIssues.push(`第一排：${highlight(firstRowElements[i + 1])} 克 ${firstRowElements[i]} -> ${parts[i]}可能有问题`);
+                }
+            }
+
+            for (let i = 0; i < secondRowElements.length - 1; i++) {
+                if (isConflict(secondRowElements[i + 1], secondRowElements[i])) {
+                    healthIssues.push(`第二排：${highlight(secondRowElements[i + 1])} 克 ${secondRowElements[i]} -> ${parts[i]}可能有问题`);
+                }
+            }
+
+            return { firstRowText, secondRowText, healthIssues };
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	function displayTcmInfo() {
         //const year = parseInt(document.getElementById('yearInput').value, 10);
        // const month = parseInt(document.getElementById('monthInput').value, 10);
@@ -309,6 +581,7 @@ const fangJi = {
 		//m_textcontent = displayMonthlyYunInfo();
 		
 		const age = document.getElementById('ageInput').value; 
+        
 				if (age) {
 			const birthYear = calculateBirthYear(age);
 			
@@ -340,6 +613,9 @@ const fangJi = {
             
         }
 		 const month = parseInt(document.getElementById('monthInput').value, 10);
+
+         const day = parseInt(document.getElementById('dayInput').value, 10);
+
         const { yun, zangFu } = getMonthlyYunInfo(month);
         const resultElement = document.getElementById('monthlyYunInfo');
 		
@@ -349,9 +625,28 @@ const fangJi = {
             resultElement.textContent = zangFu;
         }
 		
-		
+        if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                alert("请输入有效的数字");
+                return;
+            }
+        const { firstRowText, secondRowText, healthIssues } = analyzeHealth(year, month, day);
+        checkfirstRowText = checkConflicts(firstRowText)
 
+        checksecondRowText = checkConflicts(secondRowText)
 
+        const resultDiv = document.getElementById('wxxkInfo');
+
+        resultDiv.innerHTML = `
+                <h3>第一排五行：</h3>
+                <p>${checkfirstRowText}</p>
+                <h3>第二排五行：</h3>
+                <p>${checksecondRowText}</p>
+                <h3>健康分析：</h3>
+                <ul>
+                    ${healthIssues.map(issue => `<li>${issue}</li>`).join('')}
+                </ul>
+            `;
+	
 		
 		     
 		
